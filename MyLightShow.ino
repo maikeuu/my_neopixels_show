@@ -21,7 +21,7 @@
 #define PIN 6
 extern const uint8_t gamma8[]; //used for declaring the tabel at the bottom of this program
 
-class foo : public Adafruit_NeoPixel {
+class colorCorrector : public Adafruit_NeoPixel {
 
    void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b) {
      this -> setPixelColor(n, 
@@ -29,7 +29,6 @@ class foo : public Adafruit_NeoPixel {
      pgm_read_byte(&gamma8[g]),
      pgm_read_byte(&gamma8[b]));
    }
-  
   
 };
 
@@ -59,19 +58,7 @@ uint32_t teal = strip.Color(0, 255, 255);
 uint32_t black = strip.Color(0, 0, 0);
 uint32_t white = strip.Color(255, 255, 255);
 
-//Bools to turn on and off shows in animationController
-//RANDOM COLOR SHOWS
-bool randomShow = false;  //Changes random pixels to random colors
-bool randomFade = true;
-//RAINBOW SHOWS
-bool rainbowCycleShow = true;  //Cycle through the rainbow in segments 
-bool rainbowStripShow = true; //Simultaneously cycle all leds through all 256 colors 
-bool rainbowChaseShow = true;  //Cycle through the rainbow by turning every third pixel off creating chase effect
-bool rainbowPulseShow = true;
-//SPLIT LED SHOWS
-bool splitShineShow = true;
-bool splitChaseShow = true;
-bool splitFlashShow = true;
+
 
 //TODO: FIGURE OUT HOW TO IMPLEMENT TIMER PROGRAM
 //Timers
@@ -88,56 +75,15 @@ void setup() {
 }
 
 void loop() {
-  animationController();
+  rainbowCycle(50);
+//  theaterChaseRainbow(40);
+  rainbowPulse(5, 8, 30, true);
+  colorCycle(50);
+splitToMiddle(20, 10, 30);
+splitFlash(10,10,100);
 
 }
 
-
-
-
-
-
-//Handles which shows to turn on based off of global boolean variable conditions for each show
-void animationController() {
-  if (programOn) {
-    //RANDOM SHOWS
-    if (randomShow) {
-      randomize(false);
-    }
-    if (randomFade) {
-      randomFadeShow(5);
-    }
-    //RAINBOW BASED SHOWS
-    if (rainbowStripShow) {
-      int count = 0;
-      while (count < 5) {
-        colorCycle(100);
-        count++;
-      }
-    }
-    if (rainbowCycleShow) {
-      rainbowCycle(100);
-    }
-    if (rainbowChaseShow) {
-      theaterChaseRainbow(50);
-    }
-    if (rainbowPulseShow) {
-      rainbowPulse(5, 8, 20, true);
-      rainbowPulse(5, 16, 20, false);
-    }
-    if (randomFade) {
-      randomFadeShow(8);
-    }
-    //split shows
-    if (splitShineShow) {
-      int count = 0;
-      while (count < 150) {
-        splitShine(6, 20);
-        count++;
-      }
-    }
-  }
-}
 //////////////////////////////////
 //////////////////////////////////
 //    /* RAINBOW SHOWS */
@@ -315,73 +261,78 @@ void randomize(bool turnOff) {
 //////////////////////////////////
 
 //Segments are split into half and run different colors back and forth to meet in the middle
-void splitShine(uint8_t numHalves, uint8_t wait) {
-  const int segmentLength = strip.numPixels()/numHalves;   
-  int forwardColors [numHalves] = {}; //stores color to be used for each forward Segment
-  int backColors [numHalves] = {}; //stores colors to be used for each back segment
-  int segmentsArray[numHalves] = {}; //used to store starting position of each new segment
-  //initialize arrays
-  for (int i = 0; i < numHalves; i++) {
-    segmentsArray[i] = i * segmentLength;
-    forwardColors[i] = colorCorrect(randomColor());
-    backColors[i] = colorCorrect(randomColor());
-  }
-  for (int LED = 0; LED <= segmentLength/2; LED++) { // 0 to 29, 30 to 59, 60 to 89, 90 to 119, 120 to 149
-    for (int segment = 0; segment < sizeof(segmentsArray); segment++) { // {0, 30, 60, 90, 120}
-      strip.setPixelColor(segmentsArray[segment] + LED, forwardColors[segment]);
-      strip.setPixelColor(segmentLength * (segment+1) - LED, backColors[segment]);
+void splitToMiddle(uint8_t cycles, uint8_t numHalves, uint8_t wait) {
+  for (int cycle = 0; cycle < cycles; cycle++) {
+    const int segmentLength = strip.numPixels()/numHalves;   
+    uint32_t forwardColors [numHalves] = {}; //stores color to be used for each forward Segment
+    uint32_t backColors [numHalves] = {}; //stores colors to be used for each back segment
+    int segmentsArray[numHalves] = {}; //used to store starting position of each new segment
+    //initialize arrays
+    for (int i = 0; i < numHalves; i++) {
+      segmentsArray[i] = i * segmentLength;
+      forwardColors[i] = randomColor();
+      backColors[i] = randomColor();
     }
-    strip.show();
-    delay(wait);
-  }
-}
-
-//Segments run one way revealing their colors from beginning to end
-void splitChase(uint8_t numHalves, uint8_t wait) {
-  //Case numHalves = 5
-  int colors[numHalves] = {};
-  int segmentLength = strip.numPixels()/numHalves;
-  int segments[numHalves] = {}; //{30, 60, 90, 120, 150}
-  //segmentLength = 150/5 = 30
-  //initialize color array
-  for (int i = 0; i < numHalves; i++) {
-    colors[i] = rand() % 255 + 1;
-  }
-  //initialize segments array
-  for (int i = 0; i < numHalves; i++) {
-    segments[i] = i * segmentLength;
-  }
-  for (int i = 0; i < numHalves; i++) {
-    for (int index = 0; index < segmentLength; index++) {
-      strip.setPixelColor(index + segments[i], Wheel(colors[i]));
+    for (int LED = 0; LED <= segmentLength/2; LED++) { // 0 to 29, 30 to 59, 60 to 89, 90 to 119, 120 to 149
+      for (int segment = 0; segment < sizeof(segmentsArray); segment++) { // {0, 30, 60, 90, 120}
+        strip.setPixelColor(segmentsArray[segment] + LED, forwardColors[segment]);
+        strip.setPixelColor(segmentLength * (segment+1) - LED, backColors[segment]);
+      }
       strip.show();
       delay(wait);
     }
   }
 }
 
-//Segments flash new colors per iteration
-void splitFlash(uint8_t numHalves, uint8_t wait) {
+//Segments run one way revealing their colors from beginning to end
+void splitChase(uint8_t cycles, uint8_t numHalves, uint8_t wait) {
+  for (int cycle = 0; cycle < cycles; cycle++) {
     //Case numHalves = 5
-  int colors[numHalves] = {};
-  int segmentLength = strip.numPixels()/numHalves;
-  int segments[numHalves] = {}; //{30, 60, 90, 120, 150}
-  //segmentLength = 150/5 = 30
-  //initialize color array
-  for (int i = 0; i < numHalves; i++) {
-    colors[i] = rand() % 255 + 1;
-  }
-  //initialize segments array
-  for (int i = 0; i < numHalves; i++) {
-    segments[i] = i * segmentLength;
-  }
-  for (int i = 0; i < numHalves; i++) {
-    for (int index = 0; index < segmentLength; index++) {
-      strip.setPixelColor(index + segments[i], Wheel(colors[i]));
+    uint32_t colors[numHalves] = {};
+    int segmentLength = strip.numPixels()/numHalves;
+    int segments[numHalves] = {}; //{30, 60, 90, 120, 150}
+    //segmentLength = 150/5 = 30
+    //initialize color array
+    for (int i = 0; i < numHalves; i++) {
+      colors[i] = rand() % 255 + 1;
+    }
+    //initialize segments array
+    for (int i = 0; i < numHalves; i++) {
+      segments[i] = i * segmentLength;
+    }
+    for (int i = 0; i < numHalves; i++) {
+      for (int index = 0; index < segmentLength; index++) {
+        strip.setPixelColor(index + segments[i], Wheel(colors[i]));
+        strip.show();
+        delay(wait);
+      }
     }
   }
-   strip.show();
-   delay(wait*1000);
+}
+
+//Segments flash new colors per iteration
+void splitFlash(uint8_t cycles, uint8_t numHalves, uint8_t wait) {
+  for (int cycle = 0; cycle < cycles; cycle++) {
+    uint32_t colors[numHalves] = {};
+    int segmentLength = strip.numPixels()/numHalves;
+    int segments[numHalves] = {}; //{30, 60, 90, 120, 150}
+    //segmentLength = 150/5 = 30
+    //initialize color array
+    for (int i = 0; i < numHalves; i++) {
+      colors[i] = rand() % 255 + 1;
+    }
+    //initialize segments array
+    for (int i = 0; i < numHalves; i++) {
+      segments[i] = i * segmentLength;
+    }
+    for (int i = 0; i < numHalves; i++) {
+      for (int index = 0; index < segmentLength; index++) {
+        strip.setPixelColor(index + segments[i], Wheel(colors[i]));
+      }
+    }
+     strip.show();
+     delay(wait * 10);
+    }
 }
 
 //////////////////////////////////
@@ -478,15 +429,14 @@ uint32_t colorCorrect(uint32_t c) {
 void setColor(uint32_t c) {
   for (uint16_t i = 0; i < strip.numPixels(); i++) {
     strip.setPixelColor(i, c);
-    
   }
   strip.show();
 }
 
 //Returns a random color with RGB values each ranging from 0 - 255 respectively
 uint32_t randomColor() {
-  uint8_t red = rand() % 100 + 1;
-  return strip.Color(rand() % 255 + 1, rand() % 255 + 1, rand() % 255 + 1);
+  int wheelPos = rand() % 255 + 1;
+  return Wheel(wheelPos);
 }
 
 
